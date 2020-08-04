@@ -1,6 +1,8 @@
 import glob
 import random
 import os
+from os import listdir
+from os.path import isfile, join
 import sys
 import numpy as np
 from PIL import Image
@@ -38,22 +40,32 @@ def random_resize(images, min_size=288, max_size=448):
 
 class ImageFolder(Dataset):
     def __init__(self, folder_path, img_size=416):
-        self.files = sorted(glob.glob("%s/*.*" % folder_path))
+        self.folder_path = folder_path
+        self.folders = [f for f in listdir(folder_path)]
+        # self.files = sorted(glob.glob("%s/*.*" % folder_path))
         self.img_size = img_size
 
     def __getitem__(self, index):
-        img_path = self.files[index % len(self.files)]
-        # Extract image as PyTorch tensor
-        img = transforms.ToTensor()(Image.open(img_path))
-        # Pad to square resolution
-        img, _ = pad_to_square(img, 0)
-        # Resize
-        img = resize(img, self.img_size)
+        folder_path = self.folders[index % len(self.folders)]
+        path = f'./{self.folder_path}/{folder_path}/frames'
+        files = sorted(glob.glob("%s/*.*" % path))
+        
+        imgs = None 
+        for f in files:
+            # Extract image as PyTorch tensor
+            img = transforms.ToTensor()(Image.open(f))
+            # Pad to square resolution
+            img, _ = pad_to_square(img, 0)
+            # Resize
+            img = resize(img, self.img_size)
+            if imgs is None:
+                imgs = torch.Tensor(size=(0, *img.shape))
+            imgs = torch.cat((imgs, img[None]), axis=0)
 
-        return img_path, img
+        return files, imgs
 
     def __len__(self):
-        return len(self.files)
+        return len(self.folders)
 
 
 class ListDataset(Dataset):
